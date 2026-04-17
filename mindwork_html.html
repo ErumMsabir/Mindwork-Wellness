@@ -1,0 +1,520 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>MindWork — Employee Mental Wellness Platform</title>
+<script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f5f5f3; color: #1a1a1a; line-height: 1.6; }
+  input, textarea, button, select { font-family: inherit; }
+  textarea { resize: vertical; }
+  ::-webkit-scrollbar { width: 6px; } ::-webkit-scrollbar-thumb { background: #ccc; border-radius: 3px; }
+  @media (prefers-color-scheme: dark) {
+    body { background: #1a1a1a; color: #f0f0f0; }
+    .card { background: #242424 !important; border-color: rgba(255,255,255,0.1) !important; }
+    .surface { background: #2c2c2c !important; }
+    input, textarea { background: #2c2c2c !important; color: #f0f0f0 !important; border-color: rgba(255,255,255,0.15) !important; }
+    .text-secondary { color: #aaa !important; }
+  }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const { useState, useRef, useEffect } = React;
+
+const C = {
+  teal:"#1D9E75", tealL:"#E1F5EE", tealD:"#085041",
+  purple:"#7F77DD", purpleL:"#EEEDFE", purpleD:"#3C3489",
+  coral:"#D85A30", coralL:"#FAECE7",
+  amber:"#BA7517", amberL:"#FAEEDA",
+  red:"#E24B4A", redL:"#FCEBEB",
+  green:"#639922", greenL:"#EAF3DE",
+  blue:"#378ADD", blueL:"#E6F1FB", blueD:"#0C447C",
+};
+
+const moodLabels = ["Very low","Low","Neutral","Good","Excellent"];
+const moodColors = ["#E24B4A","#D85A30","#BA7517","#1D9E75","#639922"];
+const stressLabels = ["None","Mild","Moderate","High","Severe"];
+
+const initHistory = [
+  {day:"Mon",mood:3,stress:2,energy:3},
+  {day:"Tue",mood:2,stress:3,energy:2},
+  {day:"Wed",mood:3,stress:3,energy:3},
+  {day:"Thu",mood:4,stress:2,energy:4},
+  {day:"Fri",mood:3,stress:2,energy:3},
+];
+
+const teamData = [
+  {dept:"Engineering",avgMood:3.2,stress:2.8,risk:"medium"},
+  {dept:"Sales",avgMood:2.6,stress:3.6,risk:"high"},
+  {dept:"Design",avgMood:3.8,stress:1.9,risk:"low"},
+  {dept:"Operations",avgMood:3.1,stress:2.4,risk:"low"},
+  {dept:"HR",avgMood:4.0,stress:1.5,risk:"low"},
+];
+
+function getRiskColor(r){return r==="high"?C.red:r==="medium"?C.amber:C.green;}
+function getRiskBg(r){return r==="high"?C.redL:r==="medium"?C.amberL:C.greenL;}
+
+function btn(extra={}){
+  return {border:"0.5px solid rgba(0,0,0,0.15)",borderRadius:8,cursor:"pointer",fontWeight:500,fontSize:13,padding:"9px 18px",...extra};
+}
+
+function BreathingExercise({onClose}){
+  const phases=[
+    {key:"inhale",label:"Breathe in",duration:4,color:C.teal},
+    {key:"hold1",label:"Hold",duration:4,color:C.purple},
+    {key:"exhale",label:"Breathe out",duration:4,color:C.coral},
+    {key:"hold2",label:"Hold",duration:4,color:C.amber},
+  ];
+  const [phase,setPhase]=useState("ready");
+  const [count,setCount]=useState(0);
+  const [cycles,setCycles]=useState(0);
+  const [running,setRunning]=useState(false);
+  const timerRef=useRef(null);
+  const phaseIdx=phases.findIndex(p=>p.key===phase);
+  const cur=phases[phaseIdx]||phases[0];
+
+  useEffect(()=>{
+    if(!running)return;
+    timerRef.current=setInterval(()=>{
+      setCount(c=>{
+        if(c>=cur.duration-1){
+          const next=(phaseIdx+1)%phases.length;
+          if(next===0)setCycles(cy=>cy+1);
+          setPhase(phases[next].key);
+          return 0;
+        }
+        return c+1;
+      });
+    },1000);
+    return()=>clearInterval(timerRef.current);
+  },[running,phase]);
+
+  function start(){setPhase("inhale");setCount(0);setCycles(0);setRunning(true);}
+  function stop(){setRunning(false);setPhase("ready");setCount(0);}
+
+  const size=120,r=48,circ=2*Math.PI*r;
+  const progress=running?((cur.duration-count)/cur.duration):1;
+  const dash=circ*progress;
+
+  return(
+    <div style={{background:"#f0f0ee",borderRadius:12,padding:"1.25rem",marginBottom:16}}>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
+        <span style={{fontWeight:500,fontSize:14}}>Box breathing (4-4-4-4)</span>
+        <button onClick={onClose} style={{background:"none",border:"none",cursor:"pointer",fontSize:20,color:"#888",lineHeight:1}}>×</button>
+      </div>
+      <p style={{fontSize:13,color:"#666",lineHeight:1.6,marginBottom:16}}>Breathe in for 4, hold 4, out 4, hold 4. Calms your nervous system in minutes.</p>
+      <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:12}}>
+        <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
+          <circle cx={size/2} cy={size/2} r={r} fill="none" stroke="#ddd" strokeWidth={6}/>
+          {running&&<circle cx={size/2} cy={size/2} r={r} fill="none" stroke={cur.color} strokeWidth={6}
+            strokeDasharray={`${dash} ${circ}`} strokeLinecap="round"
+            transform={`rotate(-90 ${size/2} ${size/2})`} style={{transition:"stroke-dasharray 0.9s linear,stroke 0.3s"}}/>}
+          <text x={size/2} y={size/2-8} textAnchor="middle" fontSize={13} fontWeight={500} fill={running?cur.color:"#888"}>
+            {running?cur.label:"Ready"}
+          </text>
+          <text x={size/2} y={size/2+14} textAnchor="middle" fontSize={22} fontWeight={500} fill="#1a1a1a">
+            {running?cur.duration-count:""}
+          </text>
+          {cycles>0&&<text x={size/2} y={size/2+30} textAnchor="middle" fontSize={11} fill="#888">{cycles} cycle{cycles>1?"s":""}</text>}
+        </svg>
+        {!running
+          ?<button onClick={start} style={{...btn(),background:C.teal,color:"#fff",border:"none"}}>Start</button>
+          :<button onClick={stop} style={{...btn(),background:"#fff"}}>Stop</button>}
+      </div>
+    </div>
+  );
+}
+
+function JournalView({onClose}){
+  const prompts=[
+    "What's one thing weighing on your mind right now? Write it out freely.",
+    "What went well today, even something small?",
+    "If your stress had a name, what would it be? What is it trying to protect you from?",
+    "What would you say to a friend feeling exactly how you feel right now?",
+    "What's one small thing you could do today to feel a little better?",
+  ];
+  const [idx,setIdx]=useState(0);
+  const [entry,setEntry]=useState("");
+  const [saved,setSaved]=useState(false);
+
+  return(
+    <div style={{background:"#f0f0ee",borderRadius:12,padding:"1.25rem",marginBottom:16}}>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
+        <span style={{fontWeight:500,fontSize:14}}>Journal prompt</span>
+        <button onClick={onClose} style={{background:"none",border:"none",cursor:"pointer",fontSize:20,color:"#888",lineHeight:1}}>×</button>
+      </div>
+      <div style={{background:C.purpleL,borderRadius:8,padding:"10px 14px",marginBottom:12}}>
+        <p style={{fontSize:14,color:C.purpleD,lineHeight:1.6,fontStyle:"italic"}}>"{prompts[idx]}"</p>
+      </div>
+      {!saved?(
+        <>
+          <textarea value={entry} onChange={e=>setEntry(e.target.value)} rows={4}
+            placeholder="Write freely — this is your private space. No one else will see this."
+            style={{width:"100%",borderRadius:8,border:"0.5px solid #ddd",padding:"10px 12px",fontSize:13,lineHeight:1.6,background:"#fff",color:"#1a1a1a"}}/>
+          <div style={{display:"flex",gap:8,marginTop:10}}>
+            <button onClick={()=>{if(entry.trim())setSaved(true);}} style={{...btn(),background:C.purple,color:"#fff",border:"none",opacity:entry.trim()?1:0.5,cursor:entry.trim()?"pointer":"not-allowed"}}>Save entry</button>
+            <button onClick={()=>{setIdx(i=>(i+1)%prompts.length);setEntry("");setSaved(false);}} style={{...btn(),background:"#fff"}}>Another prompt</button>
+          </div>
+        </>
+      ):(
+        <div style={{textAlign:"center",padding:"1rem 0"}}>
+          <p style={{fontWeight:500,color:C.teal,marginBottom:6}}>Entry saved.</p>
+          <p style={{fontSize:13,color:"#666",marginBottom:12}}>Writing things out helps you process emotions and gain perspective — a core CBT tool.</p>
+          <button onClick={()=>{setIdx(i=>(i+1)%prompts.length);setEntry("");setSaved(false);}} style={{...btn(),background:"#fff"}}>Write another</button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function CheckInView({onComplete,setTab}){
+  const [mood,setMood]=useState(3);
+  const [stress,setStress]=useState(2);
+  const [energy,setEnergy]=useState(3);
+  const [done,setDone]=useState(false);
+  const [showBreath,setShowBreath]=useState(false);
+  const [showJournal,setShowJournal]=useState(false);
+
+  function getLevel(){
+    const s=(5-mood)+stress;
+    return s>=7?"high":s>=4?"medium":"low";
+  }
+
+  const interventions={
+    low:[
+      {icon:"◎",label:"You're doing well",desc:"Keep it up. A few minutes of mindfulness or a short walk can sustain positive energy through the day.",tag:"Tip"},
+      {icon:"◉",label:"Gratitude check",desc:"Name 3 things you're grateful for today — even small ones. Research shows this builds long-term resilience.",tag:"ACT"},
+    ],
+    medium:[
+      {icon:"◎",label:"Box breathing",desc:"Feeling some stress? 4 counts in, hold 4, out 4, hold 4 — repeat 4 times. Activates your parasympathetic nervous system.",tag:"Tip"},
+      {icon:"◉",label:"5-4-3-2-1 grounding",desc:"Name 5 things you see, 4 you hear, 3 you can touch, 2 you smell, 1 you taste. Anchors you to the present moment.",tag:"ACT"},
+      {icon:"◈",label:"Reframe the thought",desc:"Notice a stressful thought. Ask: Is this a fact or a feeling? What would I tell a friend in this situation?",tag:"CBT"},
+    ],
+    high:[
+      {icon:"◎",label:"Start with your breath",desc:"Before anything else — 5 slow, deep breaths. Your nervous system responds faster to breath than to thoughts.",tag:"Tip"},
+      {icon:"◉",label:"Name it to tame it",desc:"Say out loud or write: 'I am feeling ___.' Labelling emotions reduces their intensity — backed by neuroscience.",tag:"CBT"},
+      {icon:"◈",label:"Values anchor",desc:"Ask: What matters most to me right now? Take one small action aligned with that — even texting someone you care about.",tag:"ACT"},
+    ],
+  };
+
+  if(done){
+    const level=getLevel();
+    const tips=interventions[level];
+    const headings={low:"Great that you checked in today.",medium:"Thanks for sharing. You're not alone in this.",high:"We hear you. Take it one step at a time."};
+    return(
+      <div>
+        <div style={{background:C.tealL,borderRadius:10,padding:"0.85rem 1.1rem",marginBottom:16}}>
+          <p style={{color:C.tealD,fontWeight:500,margin:"0 0 2px",fontSize:14}}>{headings[level]}</p>
+          <p style={{color:C.teal,margin:0,fontSize:13}}>Here are a few things that might help right now.</p>
+        </div>
+
+        {showBreath&&<BreathingExercise onClose={()=>setShowBreath(false)}/>}
+        {showJournal&&<JournalView onClose={()=>setShowJournal(false)}/>}
+
+        <div style={{display:"grid",gap:10,marginBottom:16}}>
+          {tips.map((t,i)=>(
+            <div key={i} style={{border:"0.5px solid #ddd",borderRadius:10,padding:"0.85rem 1rem",background:"#fff"}}>
+              <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:4}}>
+                <span style={{fontSize:15,color:C.teal}}>{t.icon}</span>
+                <span style={{fontWeight:500,fontSize:14}}>{t.label}</span>
+                <span style={{fontSize:11,background:C.purpleL,color:C.purpleD,padding:"2px 8px",borderRadius:6}}>{t.tag}</span>
+              </div>
+              <p style={{margin:0,fontSize:13,color:"#555",lineHeight:1.6}}>{t.desc}</p>
+            </div>
+          ))}
+        </div>
+
+        <p style={{fontWeight:500,fontSize:13,margin:"0 0 10px",color:"#666"}}>Want to do more right now?</p>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:16}}>
+          <button onClick={()=>{setShowBreath(v=>!v);setShowJournal(false);}} style={{border:`0.5px solid ${showBreath?C.teal:"#ddd"}`,borderRadius:10,padding:"0.85rem 1rem",background:showBreath?C.tealL:"#f8f8f6",cursor:"pointer",textAlign:"left"}}>
+            <div style={{fontSize:20,marginBottom:4}}>🌬️</div>
+            <div style={{fontWeight:500,fontSize:13,color:showBreath?C.tealD:"#1a1a1a"}}>Breathing exercise</div>
+            <div style={{fontSize:12,color:"#888",marginTop:2}}>Guided box breathing</div>
+          </button>
+          <button onClick={()=>{setShowJournal(v=>!v);setShowBreath(false);}} style={{border:`0.5px solid ${showJournal?C.purple:"#ddd"}`,borderRadius:10,padding:"0.85rem 1rem",background:showJournal?C.purpleL:"#f8f8f6",cursor:"pointer",textAlign:"left"}}>
+            <div style={{fontSize:20,marginBottom:4}}>📓</div>
+            <div style={{fontWeight:500,fontSize:13,color:showJournal?C.purpleD:"#1a1a1a"}}>Write in journal</div>
+            <div style={{fontSize:12,color:"#888",marginTop:2}}>CBT-guided prompts</div>
+          </button>
+        </div>
+
+        <div style={{border:`0.5px solid ${C.blue}`,borderRadius:10,padding:"0.85rem 1rem",background:C.blueL,marginBottom:level==="high"?12:0}}>
+          <div style={{display:"flex",alignItems:"flex-start",gap:10}}>
+            <div style={{fontSize:20,marginTop:2}}>💬</div>
+            <div>
+              <p style={{margin:"0 0 3px",fontWeight:500,fontSize:13,color:C.blueD}}>Want to talk it through?</p>
+              <p style={{margin:"0 0 10px",fontSize:13,color:"#555",lineHeight:1.6}}>Our AI wellness assistant is here to listen — anytime, with no judgment. Your conversation is completely anonymous and confidential. Share as little or as much as you like.</p>
+              <button onClick={()=>setTab("chat")} style={{background:C.blue,color:"#fff",border:"none",borderRadius:8,padding:"8px 18px",fontWeight:500,fontSize:13,cursor:"pointer"}}>Start a conversation</button>
+            </div>
+          </div>
+        </div>
+
+        {level==="high"&&(
+          <div style={{border:`0.5px solid ${C.amber}`,borderRadius:10,padding:"0.85rem 1rem",background:C.amberL,marginTop:12}}>
+            <div style={{display:"flex",alignItems:"flex-start",gap:10}}>
+              <div style={{fontSize:20,marginTop:2}}>🤝</div>
+              <div>
+                <p style={{margin:"0 0 3px",fontWeight:500,fontSize:13,color:C.amber}}>A little extra support can make a big difference</p>
+                <p style={{margin:0,fontSize:13,color:"#555",lineHeight:1.6}}>It sounds like things feel quite heavy right now. Speaking with a counsellor or therapist — even just once — can provide real relief. This is a sign of self-awareness, not weakness. Your company's Employee Assistance Programme (EAP) offers free, confidential sessions.</p>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  return(
+    <div>
+      <p style={{color:"#666",marginTop:0,fontSize:14}}>Takes less than a minute. Your responses are completely private.</p>
+      {[
+        {label:"How are you feeling today?",val:mood,set:setMood,colors:moodColors,labels:moodLabels},
+        {label:"Stress level right now?",val:stress,set:setStress,colors:["#639922","#1D9E75","#BA7517","#D85A30","#E24B4A"],labels:stressLabels},
+        {label:"Energy level?",val:energy,set:setEnergy,colors:moodColors,labels:moodLabels},
+      ].map(({label,val,set,colors,labels})=>(
+        <div key={label} style={{marginBottom:20}}>
+          <p style={{fontWeight:500,fontSize:14,margin:"0 0 10px"}}>{label}</p>
+          <div style={{display:"flex",gap:6}}>
+            {[1,2,3,4,5].map(v=>(
+              <button key={v} onClick={()=>set(v)} style={{flex:1,padding:"9px 0",borderRadius:8,border:"0.5px solid",
+                borderColor:val===v?colors[v-1]:"#ddd",
+                background:val===v?colors[v-1]:"#f5f5f3",
+                color:val===v?"#fff":"#666",
+                fontWeight:val===v?500:400,cursor:"pointer",fontSize:11,transition:"all 0.15s"}}>
+                {labels[v-1]}
+              </button>
+            ))}
+          </div>
+        </div>
+      ))}
+      <button onClick={()=>{setDone(true);onComplete({mood,stress,energy});}} style={{background:C.teal,color:"#fff",border:"none",borderRadius:8,padding:"12px 28px",fontWeight:500,fontSize:14,cursor:"pointer",width:"100%"}}>See my support plan</button>
+    </div>
+  );
+}
+
+function ChatView(){
+  const [messages,setMessages]=useState([
+    {role:"assistant",text:"Hi, I'm here for you — and everything you share here stays completely between us. How are you feeling right now? You can start with anything, even just a few words."}
+  ]);
+  const [input,setInput]=useState("");
+  const [loading,setLoading]=useState(false);
+  const endRef=useRef(null);
+
+  useEffect(()=>{endRef.current?.scrollIntoView({behavior:"smooth"});},[messages]);
+
+  async function send(){
+    if(!input.trim()||loading)return;
+    const userMsg=input.trim();
+    setInput("");
+    setMessages(prev=>[...prev,{role:"user",text:userMsg}]);
+    setLoading(true);
+    try{
+      const history=[...messages,{role:"user",text:userMsg}];
+      const res=await fetch("https://api.anthropic.com/v1/messages",{
+        method:"POST",
+        headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({
+          model:"claude-sonnet-4-20250514",
+          max_tokens:1000,
+          system:`You are a warm, empathetic workplace mental wellness assistant trained in CBT and ACT frameworks. Listen actively, validate feelings, use CBT (thought records, reframing, behavioral activation) and ACT (values clarification, defusion, acceptance, committed action) techniques. Offer practical micro-interventions. Only suggest professional help after persistent severe distress across several exchanges. Keep responses to 3-5 sentences. Never diagnose. Warm, human, non-clinical tone. Reassure the user their conversation is anonymous and confidential.`,
+          messages:history.map(m=>({role:m.role,content:m.text}))
+        })
+      });
+      const data=await res.json();
+      const reply=data.content?.find(b=>b.type==="text")?.text||"I'm here. Tell me more.";
+      setMessages(prev=>[...prev,{role:"assistant",text:reply}]);
+    }catch{
+      setMessages(prev=>[...prev,{role:"assistant",text:"I'm having trouble connecting right now. Please try again in a moment."}]);
+    }
+    setLoading(false);
+  }
+
+  return(
+    <div>
+      <div style={{background:C.blueL,borderRadius:8,padding:"8px 12px",marginBottom:12}}>
+        <span style={{fontSize:13,color:C.blueD}}>Your conversation is completely anonymous. Nothing is shared with your manager or employer.</span>
+      </div>
+      <div style={{display:"flex",flexDirection:"column",height:360,overflowY:"auto",gap:12,paddingBottom:12}}>
+        {messages.map((m,i)=>(
+          <div key={i} style={{display:"flex",justifyContent:m.role==="user"?"flex-end":"flex-start"}}>
+            <div style={{maxWidth:"82%",padding:"10px 14px",fontSize:14,lineHeight:1.6,
+              borderRadius:m.role==="user"?"16px 16px 4px 16px":"16px 16px 16px 4px",
+              background:m.role==="user"?C.teal:"#f0f0ee",
+              color:m.role==="user"?"#fff":"#1a1a1a"}}>
+              {m.text}
+            </div>
+          </div>
+        ))}
+        {loading&&<div style={{display:"flex"}}><div style={{padding:"10px 14px",borderRadius:"16px 16px 16px 4px",background:"#f0f0ee",fontSize:14,color:"#888"}}>Thinking...</div></div>}
+        <div ref={endRef}/>
+      </div>
+      <div style={{display:"flex",gap:8,borderTop:"0.5px solid #ddd",paddingTop:12}}>
+        <input value={input} onChange={e=>setInput(e.target.value)} onKeyDown={e=>e.key==="Enter"&&send()}
+          placeholder="Share how you're feeling..."
+          style={{flex:1,borderRadius:8,border:"0.5px solid #ddd",padding:"10px 14px",fontSize:14,background:"#f5f5f3",color:"#1a1a1a"}}/>
+        <button onClick={send} disabled={loading} style={{background:C.teal,color:"#fff",border:"none",borderRadius:8,padding:"10px 20px",fontWeight:500,fontSize:14,cursor:loading?"not-allowed":"pointer",opacity:loading?0.6:1}}>Send</button>
+      </div>
+    </div>
+  );
+}
+
+function MoodBar({value,color}){
+  return(
+    <div style={{display:"flex",gap:4}}>
+      {Array.from({length:5}).map((_,i)=>(
+        <div key={i} style={{width:18,height:10,borderRadius:3,background:i<value?color:"#e0e0e0"}}/>
+      ))}
+    </div>
+  );
+}
+
+function MiniChart({data}){
+  const w=320,h=80,pad=16;
+  const xStep=(w-pad*2)/(data.length-1);
+  const scaleY=v=>h-pad-((v-1)/4)*(h-pad*2);
+  const toPath=key=>data.map((d,i)=>`${i===0?"M":"L"}${pad+i*xStep},${scaleY(d[key])}`).join(" ");
+  return(
+    <svg viewBox={`0 0 ${w} ${h}`} style={{width:"100%",height:h}}>
+      <path d={toPath("mood")} fill="none" stroke={C.teal} strokeWidth={2} strokeLinecap="round"/>
+      <path d={toPath("stress")} fill="none" stroke={C.coral} strokeWidth={2} strokeLinecap="round" strokeDasharray="4 3"/>
+      <path d={toPath("energy")} fill="none" stroke={C.purple} strokeWidth={2} strokeLinecap="round" strokeDasharray="2 2"/>
+      {data.map((d,i)=>(
+        <text key={i} x={pad+i*xStep} y={h-2} textAnchor="middle" fontSize={10} fill="#888">{d.day}</text>
+      ))}
+    </svg>
+  );
+}
+
+function DashboardView({history}){
+  const avg=key=>(history.reduce((s,d)=>s+d[key],0)/history.length).toFixed(1);
+  return(
+    <div>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10,marginBottom:20}}>
+        {[{label:"Avg mood",val:avg("mood"),color:C.teal},{label:"Avg stress",val:avg("stress"),color:C.coral},{label:"Avg energy",val:avg("energy"),color:C.purple}].map(({label,val,color})=>(
+          <div key={label} style={{background:"#f0f0ee",borderRadius:8,padding:"0.85rem 1rem"}}>
+            <p style={{margin:"0 0 4px",fontSize:12,color:"#888"}}>{label}</p>
+            <p style={{margin:0,fontSize:24,fontWeight:500,color}}>{val}<span style={{fontSize:12,color:"#888"}}>/5</span></p>
+          </div>
+        ))}
+      </div>
+      <p style={{fontSize:13,color:"#888",margin:"0 0 6px"}}>This week — mood (teal), stress (coral dashed), energy (purple dotted)</p>
+      <MiniChart data={history}/>
+    </div>
+  );
+}
+
+function ManagerView(){
+  const overall=(teamData.reduce((s,d)=>s+d.avgMood,0)/teamData.length).toFixed(1);
+  const avgStress=(teamData.reduce((s,d)=>s+d.stress,0)/teamData.length).toFixed(1);
+  const highRisk=teamData.filter(d=>d.risk==="high").length;
+  return(
+    <div>
+      <div style={{background:C.purpleL,borderRadius:10,padding:"0.85rem 1.1rem",marginBottom:16}}>
+        <p style={{fontSize:12,color:C.purpleD}}>All data is anonymised and aggregated. Individual responses are never visible to managers.</p>
+      </div>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10,marginBottom:20}}>
+        {[{label:"Team avg mood",val:overall,color:C.teal},{label:"Avg stress",val:avgStress,color:C.coral},{label:"High-risk depts",val:highRisk,color:C.red}].map(({label,val,color})=>(
+          <div key={label} style={{background:"#f0f0ee",borderRadius:8,padding:"0.85rem 1rem"}}>
+            <p style={{margin:"0 0 4px",fontSize:12,color:"#888"}}>{label}</p>
+            <p style={{margin:0,fontSize:22,fontWeight:500,color}}>{val}</p>
+          </div>
+        ))}
+      </div>
+      <p style={{fontWeight:500,fontSize:14,margin:"0 0 10px"}}>Department overview</p>
+      <div style={{display:"grid",gap:8}}>
+        {teamData.map(d=>(
+          <div key={d.dept} style={{border:"0.5px solid #ddd",borderRadius:10,padding:"0.75rem 1rem",background:"#fff",display:"flex",alignItems:"center",gap:12}}>
+            <div style={{flex:1}}>
+              <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:6}}>
+                <span style={{fontWeight:500,fontSize:14}}>{d.dept}</span>
+                <span style={{fontSize:11,padding:"2px 8px",borderRadius:6,background:getRiskBg(d.risk),color:getRiskColor(d.risk),fontWeight:500}}>{d.risk} risk</span>
+              </div>
+              <div style={{display:"flex",gap:16,fontSize:12,color:"#888"}}>
+                <span>Mood <b style={{color:"#1a1a1a"}}>{d.avgMood}</b></span>
+                <span>Stress <b style={{color:"#1a1a1a"}}>{d.stress}</b></span>
+              </div>
+            </div>
+            <MoodBar value={Math.round(d.avgMood)} color={C.teal}/>
+          </div>
+        ))}
+      </div>
+      {highRisk>0&&(
+        <div style={{marginTop:16,background:C.amberL,border:`0.5px solid ${C.amber}`,borderRadius:10,padding:"0.85rem 1rem"}}>
+          <p style={{margin:"0 0 4px",fontWeight:500,fontSize:13,color:C.amber}}>Manager recommendation</p>
+          <p style={{margin:0,fontSize:13,color:"#555",lineHeight:1.6}}>Sales shows elevated stress. Consider a team check-in, reviewing workloads, or offering flexible scheduling this week. Research shows psychological safety conversations reduce team burnout by up to 30%.</p>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ResourcesView(){
+  const resources=[
+    {title:"Understanding cognitive distortions",tag:"CBT",desc:"Learn the 10 common thinking traps — catastrophising, all-or-nothing thinking, mind reading — and how to challenge them."},
+    {title:"The ACT hexaflex at work",tag:"ACT",desc:"Psychological flexibility — acceptance, defusion, present-moment contact, values, committed action — applied to your job."},
+    {title:"Workplace anxiety toolkit",tag:"Anxiety",desc:"Breathing, grounding, and progressive muscle relaxation techniques you can do at your desk in under 5 minutes."},
+    {title:"Building resilience with values",tag:"ACT",desc:"When work feels hard, reconnecting with your core values restores motivation. A 3-step values clarification exercise."},
+    {title:"When to seek professional help",tag:"Wellbeing",desc:"Signs that anxiety or depression may benefit from therapy, what to expect, and how to access your EAP or find a therapist."},
+    {title:"Manager mental health guide",tag:"Leadership",desc:"How to have supportive conversations about mental health without overstepping or diagnosing."},
+  ];
+  const tagColors={CBT:{bg:C.purpleL,color:C.purpleD},ACT:{bg:C.tealL,color:C.tealD},Anxiety:{bg:C.amberL,color:C.amber},Wellbeing:{bg:C.greenL,color:C.green},Leadership:{bg:C.coralL,color:C.coral}};
+  return(
+    <div style={{display:"grid",gap:10}}>
+      {resources.map(r=>(
+        <div key={r.title} style={{border:"0.5px solid #ddd",borderRadius:10,padding:"0.85rem 1rem",background:"#fff"}}>
+          <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:5,flexWrap:"wrap"}}>
+            <span style={{fontWeight:500,fontSize:14}}>{r.title}</span>
+            <span style={{fontSize:11,padding:"2px 8px",borderRadius:6,background:tagColors[r.tag]?.bg,color:tagColors[r.tag]?.color,whiteSpace:"nowrap"}}>{r.tag}</span>
+          </div>
+          <p style={{margin:0,fontSize:13,color:"#555",lineHeight:1.6}}>{r.desc}</p>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+const tabs=[{id:"checkin",label:"Daily check-in"},{id:"chat",label:"AI support"},{id:"dashboard",label:"My dashboard"},{id:"manager",label:"Manager view"},{id:"resources",label:"Resources"}];
+
+function App(){
+  const [tab,setTab]=useState("checkin");
+  const [history,setHistory]=useState(initHistory);
+
+  return(
+    <div style={{maxWidth:680,margin:"0 auto",padding:"1.5rem 1rem"}}>
+      <div style={{marginBottom:24}}>
+        <h1 style={{margin:"0 0 4px",fontSize:22,fontWeight:500}}>MindWork</h1>
+        <p style={{margin:0,fontSize:14,color:"#888"}}>Employee mental wellness & productivity platform</p>
+      </div>
+      <div style={{display:"flex",gap:6,marginBottom:24,overflowX:"auto",paddingBottom:4}}>
+        {tabs.map(t=>(
+          <button key={t.id} onClick={()=>setTab(t.id)} style={{padding:"8px 14px",borderRadius:8,border:"0.5px solid",
+            borderColor:tab===t.id?C.teal:"#ddd",
+            background:tab===t.id?C.tealL:"#f5f5f3",
+            color:tab===t.id?C.tealD:"#666",
+            fontWeight:tab===t.id?500:400,cursor:"pointer",fontSize:13,whiteSpace:"nowrap"}}>
+            {t.label}
+          </button>
+        ))}
+      </div>
+      <div style={{background:"#fff",border:"0.5px solid #ddd",borderRadius:12,padding:"1.25rem"}}>
+        {tab==="checkin"&&<><h2 style={{margin:"0 0 12px",fontSize:16,fontWeight:500}}>How are you today?</h2><CheckInView onComplete={v=>setHistory(p=>[...p.slice(-4),{day:"Today",...v}])} setTab={setTab}/></>}
+        {tab==="chat"&&<><h2 style={{margin:"0 0 12px",fontSize:16,fontWeight:500}}>Talk to your wellness assistant</h2><ChatView/></>}
+        {tab==="dashboard"&&<><h2 style={{margin:"0 0 16px",fontSize:16,fontWeight:500}}>Your wellbeing this week</h2><DashboardView history={history}/></>}
+        {tab==="manager"&&<><h2 style={{margin:"0 0 12px",fontSize:16,fontWeight:500}}>Team wellness overview</h2><ManagerView/></>}
+        {tab==="resources"&&<><h2 style={{margin:"0 0 12px",fontSize:16,fontWeight:500}}>Learning & support resources</h2><ResourcesView/></>}
+      </div>
+      <p style={{textAlign:"center",fontSize:12,color:"#aaa",marginTop:16}}>MindWork · All data is private and stored locally · Built with CBT & ACT frameworks</p>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
+</script>
+</body>
+</html>
